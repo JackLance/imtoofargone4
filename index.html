@@ -531,21 +531,22 @@ wpad = canvas.width - 27*cellsize;
     ctx.fillRect(0, 0, wpad/2, canvas.height);
     ctx.fillRect(0, canvas.height-hpad/2, canvas.width, hpad/2);
     ctx.fillRect(canvas.width-wpad/2, 0, wpad/2, canvas.height);
-    if(showmessage5){
+  
+    }
+      if(showmessage5){
       messagetext = messages[4];
             
             showTempMessage();
             messagesaid[4] = true; 
             showmessage5 = false;
           }
-      if(!messagesaid[5] && player.pos[1] > goalpost){
+      if(!messagesaid[5] && player.pos[1] >= goalpost){
               messagetext = messages[5];
             
               showTempMessage();
               messagesaid[5] = true; 
               stopdrawing = true;
             }
-    }
 }
 
 function cloneof(obj){
@@ -827,12 +828,8 @@ function initiatemove(obj, d, ply){
       timeoutId = setTimeout(again,againtime);
     }
     else{
-      
+       savestate();
     }
-  }
-  if(ply){
-    
-    savestate();
   }
   
   draw();
