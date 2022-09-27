@@ -654,7 +654,7 @@ function makemove(obj, d){
   delete grid[obj.pos]
   for(var i=0; i<=3; i++){
     if(equals(obj.pos,add(thing.pos, dirs[i]))){
-      if(!connecteds[i]) playSound(16747704)
+      if(!connecteds[i]) playSound(23973703)
       connecteds[i] = true;
     }
   }
@@ -743,7 +743,7 @@ function gravitystep(){
     }
   });
   if(makesound){
-    playSound(46796706);
+    playSound(16747704);
   }
   
 }
