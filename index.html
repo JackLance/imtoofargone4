@@ -310,7 +310,7 @@ a {
 		var url = "hibuddy";
 		url=qualifyURL(url);
 
-		hacklink.href=url;
+		hacklink.onclick=hackclicked;
         
 	}
     // if (storage_has('oauth_access_token')) {
@@ -360,26 +360,48 @@ movegoalpost = [];
 
 colors = {"thing":"#664444", "player":"pink", "red": "red", "green": "green", "blue": "blue", "yellow": "yellow"};
 cols = ["red", "green", "blue", "yellow"]
-darker = {"red": "darkred", "green": "darkgreen", "yellow": "darkyellow", "blue":"darkblue"}
+normal = {"red": "#dd2020", "green": "#20dd20", "yellow": "#eeee20", "blue":"#5050ff"}
+darker = {"red": "#992020", "green": "#209920", "yellow": "#bbbb20", "blue":"#3030aa"}
+darkest = {"red": "#662020", "green": "#206620", "yellow": "#888820", "blue":"#202077"}
+darkestest = {"red": "#332020", "green": "#203320", "yellow": "#444420", "blue":"#202033"}
 undostack = []
 
-
+messages = ["Hi, it's Jack. Just so you know, you can press X to use the generator.",
+"Hi again, it's me. If you want, you can press [ to slow down, and ] to speed up the game's clock. This is just for convenience and has no effect on the puzzle.",
+"Hey there, if you press K and a number key, I'll [k]eep your state saved. Then press L and that same number key, and I'll [l]oad your state. This is also just for convenience and has no effect on the puzzle.",
+"Oh, hey. I didn't think you'd click that. This is actually not a puzzlescript game at all. I just made it look like this because it's a sequel to a puzzlescript game.",
+"Hello, it's me. I guess I wasn't clear about this, but the goal is to get the *player* past the finish line.",
+"You too have gone far! :D",
+"Um... hey. The finish line is currently 10000 units away from the platform. You should probably rethink your approach. (If you beat this game by overloading my javascript numbers or whatever that doesn't count as a win.)"]
+messagesaid = [false, false, false, false, false, false, false]
+xpressed = false;
 connecteds = [1, 1, 1, 1];
 savestate();
+
+function hackclicked(){
+  if(!messagesaid[3]){
+  messagetext = messages[3];
+      showTempMessage() 
+      messagesaid[3] = true;
+    }
+}
 
 function rect(a, b, c, d){
   ctx.fillRect(a - camerax, b - cameray, c, d);
 }
+stopdrawing = false;
+showmessage5 = false;
 function draw(){
+  if(stopdrawing) return;
   if(textMode) return;
-  cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  105))* 5;
+  cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  135))* 5;
 hpad = canvas.height - 21*cellsize;
-wpad = canvas.width - 21*cellsize;
+wpad = canvas.width - 27*cellsize;
 
     camerax = player.pos[1]*cellsize - Math.floor(canvas.width/2);
     cameray = player.pos[0]*cellsize - Math.floor(canvas.height/2);
     
-    ctx.fillStyle = "#202020";
+    ctx.fillStyle = "#101010";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     
@@ -389,7 +411,8 @@ wpad = canvas.width - 21*cellsize;
       Object.values(grid).map((object) => {
         if(object.pos[2] != z) return;
         if(object == player){
-          ctx.fillStyle = "#4BC2D7";
+        
+          ctx.fillStyle = ["#4BC2D7", "#2B6277", "#1B3247"][object.pos[2]];
           rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
         }
         if(object == thing){
@@ -397,13 +420,60 @@ wpad = canvas.width - 21*cellsize;
           rect(object.pos[1]*cellsize , object.pos[0]*cellsize , cellsize, cellsize);
         }
         if(object.type == "red" || object.type == "blue" || object.type == "yellow" || object.type == "green"){
-          ctx.fillStyle = object.type;
+          if(!messagesaid[4] && object.pos[1] > goalpost && goalpost > player.pos[1] + 40){
+            showmessage5 = true;
+              
+            }
+
+          if(object.pos[2] == 2){
+             ctx.fillStyle = darkest[object.type];
+             //rect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize, cellsize);
+             //ctx.fillStyle = darkest[object.type];
+             rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
+             return;
+          }
+          if(object.pos[2] == 1){
+            ctx.fillStyle = darkest[object.type];
+            rect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize, cellsize);
+            ctx.fillStyle = darker[object.type];
+            rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
+
+             touches = [false, false, false, false]
+            for(var d=0; d<4; d++){
+              if(grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type){
+                ctx.fillStyle = darker[object.type];
+                touches[d] = true;
+              }else{
+                ctx.fillStyle = darkest[object.type];
+              }
+              if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
+              if(d == 1) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+              if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
+              if(d == 3) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+            }
+            ctx.fillStyle = darker[object.type];
+            if(touches[0] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
+            if(touches[2] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+            if(touches[2] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+            if(touches[0] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
+            ctx.fillStyle = darkest[object.type];
+            if(touches[0] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
+            if(touches[2] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+            if(touches[2] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+            if(touches[0] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
+
+
+            return;
+          }
+          
+          
+          ctx.fillStyle = normal[object.type];
           rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
 
           touches = [false, false, false, false]
           for(var d=0; d<4; d++){
             if(grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type){
-              ctx.fillStyle = object.type;
+              ctx.fillStyle = normal[object.type];
               touches[d] = true;
             }else{
               ctx.fillStyle = darker[object.type];
@@ -413,7 +483,7 @@ wpad = canvas.width - 21*cellsize;
             if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
             if(d == 3) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
           }
-          ctx.fillStyle = object.type;
+          ctx.fillStyle = normal[object.type];
           if(touches[0] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
           if(touches[2] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
           if(touches[2] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
@@ -432,7 +502,7 @@ wpad = canvas.width - 21*cellsize;
                 if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
                 if(d == 0) rect(object.pos[1]*cellsize , object.pos[0]*cellsize + 4*cellsize/5, cellsize*5/5, cellsize*1/5);
                 if(d == 1) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
-                ctx.fillStyle = object.type;
+                ctx.fillStyle = normal[object.type];
                 if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
             if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
             if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
@@ -445,7 +515,7 @@ wpad = canvas.width - 21*cellsize;
         //ctx.fillRect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize-1-5*object.pos[2], cellsize-1-5*object.pos[2]);
         
       })
-    }
+    
     ctx.fillStyle = "#F7E26B";
     if(connecteds[0]){    
       rect(thing.pos[1]*cellsize , thing.pos[0]*cellsize , cellsize, cellsize/5);
@@ -469,6 +539,21 @@ wpad = canvas.width - 21*cellsize;
     ctx.fillRect(0, 0, wpad/2, canvas.height);
     ctx.fillRect(0, canvas.height-hpad/2, canvas.width, hpad/2);
     ctx.fillRect(canvas.width-wpad/2, 0, wpad/2, canvas.height);
+    if(showmessage5){
+      messagetext = messages[4];
+            
+            showTempMessage();
+            messagesaid[4] = true; 
+            showmessage5 = false;
+          }
+      if(!messagesaid[5] && player.pos[1] > goalpost){
+              messagetext = messages[5];
+            
+              showTempMessage();
+              messagesaid[5] = true; 
+              stopdrawing = true;
+            }
+    }
 }
 
 function cloneof(obj){
@@ -490,7 +575,7 @@ function reset(){
   grid = cloneof(undostack[0].grid);
   connecteds = cloneof(undostack[0].connecteds);
   goalpost = undostack[0].goalpost;
-  undostack = [undostack[0]];
+  undostack.push(cloneof(undostack[0]));
 
   setstateto();
 
@@ -515,9 +600,52 @@ function savestate(){
 
 onkeydown = onKey;
 generation = false;
+keep = false;
+savedstates = {};
 function add(p1, p2){return [p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]]}
 function equals(p1, p2){return p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2]}
+againtime = 100;
 function onKey(e){
+   if(stopdrawing) return;
+  if(e.key >= '0' && e.key<='9'){
+    if(keep){
+      savedstates[e.key] = cloneof(undostack[undostack.length-1]);
+      messagetext = "State kept in slot " + e.key + "!";
+      showTempMessage();
+    }
+    if(load){
+      if(!savedstates[e.key]){
+        messagetext = "No state currently in slot " + e.key + " :(";
+        showTempMessage();
+      }else{
+        grid = cloneof(savedstates[e.key].grid);
+        connecteds = cloneof(savedstates[e.key].connecteds);
+        goalpost = savedstates[e.key].goalpost;
+        savestate();
+
+        setstateto();
+        messagetext = "State loaded from slot " + e.key + "!";
+        showTempMessage();
+      }
+    }
+  }
+  keep = false;
+  load = false;
+
+  if(e.key == '['){
+    if(againtime < 400) againtime *= 2;
+  }
+  if(e.key == ']'){
+    if(againtime > 50) againtime /=2;
+  }
+
+  if(e.key == 'k'){
+    keep = true;
+  }
+if(e.key == 'l'){
+    load = true;
+  }
+  console.log(e);
   draw();
   
 }
@@ -534,6 +662,7 @@ function makemove(obj, d){
   delete grid[obj.pos]
   for(var i=0; i<=3; i++){
     if(equals(obj.pos,add(thing.pos, dirs[i]))){
+      if(!connecteds[i]) playSound(23973703)
       connecteds[i] = true;
     }
   }
@@ -579,8 +708,14 @@ function trymove(obj, d, ply){
   
 }
 
+downsupported = false;
+downclock = 0;
 function setsupported(obj){
   if(!obj.willmove) return;
+  if(obj.pos[2] >= 2) return;
+  if(obj.pos[2] > 0){
+    downsupported = true;
+  }
   obj.willmove = false;
   dirs.map(dr => {
     if(grid[add(obj.pos, dr)] && obj.type == grid[add(obj.pos, dr)].type){
@@ -600,18 +735,24 @@ function gravitystep(){
 
   for(i=0; i<=10; i++) for(j=0; j<=10; j++) if(grid[[i,j,0]]) setsupported(grid[[i,j,0]])
   anyfell = false;
+  makesound = false;
   Object.values(grid).map((object) => { 
     if(object.type == "floor") return;
     if(object.willmove){
       if(!object.gravitytimer) object.gravitytimer = 0;
-      if(object.gravitytimer%8 == 0)
+      if(object.gravitytimer%8 == 0){
         makemove(object, [0,0,1]);
+        makesound = true;
+      }
        
       object.gravitytimer++;
 
       anyfell = true;
     }
   });
+  if(makesound){
+    playSound(46796706);
+  }
   
 }
 
@@ -643,10 +784,10 @@ function checkshouldagain(){
   return false;
 }
 
-againtime = 100;
+
 
 function again(){
-
+  if(stopdrawing) return;
   stunlock = true;
   gravitystep();
   didtick = false;
@@ -765,13 +906,42 @@ redraw = ()=>{
     return;
   }}
 processInput = (dir) => {
+   if(stopdrawing) return;
   ULBS()
+   keep = false;
+  load = false;
   if (dir >= 0 && dir <= 3) {
+    if(undostack.length >= 30 && !xpressed && !messagesaid[0]){
+      messagetext = messages[0];
+      showTempMessage();
+      messagesaid[0] = true; 
+    }
+    if(undostack.length >= 300 && !messagesaid[1]){
+      messagetext = messages[1];
+      showTempMessage();
+      messagesaid[1] = true; 
+    }
+ 
+    if(undostack.length >= 100 && !messagesaid[2]){
+      messagetext = messages[2];
+      showTempMessage();
+      messagesaid[2] = true; 
+    }
+    if(goalpost > 10000 && !messagesaid[6]){
+messagetext = messages[6];
+      showTempMessage();
+      messagesaid[6] = true; 
+    }
     initiatemove(player, dirs[dir], 1);
    
   }
   if(dir == 4){
-   generation = true; if(timeoutId == -1) again(); 
+   
+    if(!stunlock && timeoutId == -1) {
+      generation = true;
+      xpressed = true;
+      again(); 
+    }
   }
   draw()
    
