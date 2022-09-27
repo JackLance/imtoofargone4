@@ -261,31 +261,8 @@ a {
 
 <script>
 
-function displayError(message) {
-	var errorText = document.getElementById("errormessage");
-	errorText.innerHTML="ERROR "+message+"<br>";
 
-}
-function getParameterByName(name) {
-    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
-        results = regex.exec(location.search);
-    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-}
-
-function strip_http(url) {
-   url = url.replace(/^https?:\/\//,'');
-   return url;
-}
-
-function getData(){ 
-	var id = getParameterByName("p").replace(/[\\\/]/,"");
-	if (id===null||id.length===0) {
-		displayError("No ID specified in URL.")
-		return;
-	}
-
-	var githubURL = 'https://api.github.com/gists/'+id;
+	var githubURL = 'https://api.github.com/gists/a4bb2bf44284bdb9347cf3f1399d4f11'
 
 	var githubHTTPClient = new XMLHttpRequest();
 	githubHTTPClient.open('GET', githubURL);
@@ -330,7 +307,7 @@ function getData(){
                 
 		var hacklink = document.getElementById("hacklink");
 
-		var url = "editor.html?hack="+id;
+		var url = "hibuddy";
 		url=qualifyURL(url);
 
 		hacklink.href=url;
@@ -344,10 +321,464 @@ function getData(){
     // }
 	githubHTTPClient.setRequestHeader("Content-type","application/x-www-form-urlencoded");
 	githubHTTPClient.send();
+
+
+grid = {};
+player = {type: "player", pos: [7, 7, 0]}
+thing = {type: "thing", pos: [5, 5, 0]};
+
+for(var i=0; i<11; i++) for(var j=0; j<11; j++) grid[[i, j, 1]] = {type: "floor", pos:[i, j, 1]}
+
+grid[player.pos] = player;
+grid[thing.pos] = thing;
+
+canvas = document.getElementById ('gameCanvas' );
+ctx = canvas.getContext ('2d' );
+  cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  105))* 5;
+hpad = canvas.height - 21*cellsize;
+wpad = canvas.width - 21*cellsize;
+mysprites = {
+  player: '.....|.aaa.|.aaa.|.aaa.|.....',
+  thing: 'bbbbb|bbbbb|bbbbb|bbbbb|bbbbb',
+  alertr: '....c|....c|....c|....c|....c',
+  alertu: 'ccccc|.....|.....|.....|.....',
+  alertd: '.....|.....|.....|.....|ccccc',
+  alertl: 'c....|c....|c....|c....|c....',
+  ground: 'ddddd|ddddd|ddddd|ddddd|ddddd'
+};
+cols = {
+  a: '#F7E26B',
+  b: '#E0E0E0',
+  c: '#FFDD00',
+  d: '#707070',
+  
+};
+
+timeoutId = -1;
+goalpost = 12;
+movegoalpost = [];
+
+colors = {"thing":"#664444", "player":"pink", "red": "red", "green": "green", "blue": "blue", "yellow": "yellow"};
+cols = ["red", "green", "blue", "yellow"]
+darker = {"red": "darkred", "green": "darkgreen", "yellow": "darkyellow", "blue":"darkblue"}
+undostack = []
+
+
+connecteds = [1, 1, 1, 1];
+savestate();
+
+function rect(a, b, c, d){
+  ctx.fillRect(a - camerax, b - cameray, c, d);
+}
+function draw(){
+  if(textMode) return;
+  cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  105))* 5;
+hpad = canvas.height - 21*cellsize;
+wpad = canvas.width - 21*cellsize;
+
+    camerax = player.pos[1]*cellsize - Math.floor(canvas.width/2);
+    cameray = player.pos[0]*cellsize - Math.floor(canvas.height/2);
+    
+    ctx.fillStyle = "#202020";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    
+    ctx.fillStyle = "#F0F0F0";
+    rect(0, 0, cellsize*11, cellsize*11);
+   for(var z=2; z>=0; z--){
+      Object.values(grid).map((object) => {
+        if(object.pos[2] != z) return;
+        if(object == player){
+          ctx.fillStyle = "#4BC2D7";
+          rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
+        }
+        if(object == thing){
+          ctx.fillStyle = "#D0D0D0";
+          rect(object.pos[1]*cellsize , object.pos[0]*cellsize , cellsize, cellsize);
+        }
+        if(object.type == "red" || object.type == "blue" || object.type == "yellow" || object.type == "green"){
+          ctx.fillStyle = object.type;
+          rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
+
+          touches = [false, false, false, false]
+          for(var d=0; d<4; d++){
+            if(grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type){
+              ctx.fillStyle = object.type;
+              touches[d] = true;
+            }else{
+              ctx.fillStyle = darker[object.type];
+            }
+            if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
+            if(d == 1) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+            if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
+            if(d == 3) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+          }
+          ctx.fillStyle = object.type;
+          if(touches[0] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
+          if(touches[2] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+          if(touches[2] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+          if(touches[0] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
+          ctx.fillStyle = darker[object.type];
+          if(touches[0] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
+          if(touches[2] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+          if(touches[2] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
+          if(touches[0] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
+
+           for(var d=0; d<4; d++){
+            if(equals(object.pos, add(thing.pos, dirs[d]))){
+              if(!connecteds[d]){
+                ctx.fillStyle = darker[object.type];
+                 if(d == 2) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize*5/5, cellsize*1/5);
+                if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
+                if(d == 0) rect(object.pos[1]*cellsize , object.pos[0]*cellsize + 4*cellsize/5, cellsize*5/5, cellsize*1/5);
+                if(d == 1) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
+                ctx.fillStyle = object.type;
+                if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
+            if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+            if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
+            if(d == 1) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
+              }
+            }
+           }
+        }
+        //ctx.fillStyle = colors[object.type];
+        //ctx.fillRect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize-1-5*object.pos[2], cellsize-1-5*object.pos[2]);
+        
+      })
+    }
+    ctx.fillStyle = "#F7E26B";
+    if(connecteds[0]){    
+      rect(thing.pos[1]*cellsize , thing.pos[0]*cellsize , cellsize, cellsize/5);
+    }
+    if(connecteds[1]){
+      rect(thing.pos[1]*cellsize , thing.pos[0]*cellsize , cellsize/5, cellsize);
+    }
+    if(connecteds[2]){
+      rect(thing.pos[1]*cellsize, thing.pos[0]*cellsize  +cellsize*4/5, cellsize, cellsize/5);
+    }
+    if(connecteds[3]){
+      rect(thing.pos[1]*cellsize  +cellsize*4/5, thing.pos[0]*cellsize , cellsize/5, cellsize);
+    }
+    if((connecteds[0] || connecteds[1] || connecteds[2] || connecteds[3]) && (counter >= 0 && counter < 4)){
+      rect(thing.pos[1]*cellsize  +cellsize*(2+dirs[counter][1])/5, thing.pos[0]*cellsize + cellsize*(2+dirs[counter][0])/5 , cellsize/5, cellsize/5);
+    }
+    ctx.fillStyle = "#00FF00";
+    rect(goalpost * cellsize,-2000, cellsize/5, 4000);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, canvas.width, hpad/2);
+    ctx.fillRect(0, 0, wpad/2, canvas.height);
+    ctx.fillRect(0, canvas.height-hpad/2, canvas.width, hpad/2);
+    ctx.fillRect(canvas.width-wpad/2, 0, wpad/2, canvas.height);
 }
 
-getData();
+function cloneof(obj){
+  return JSON.parse(JSON.stringify(obj));
+}
 
+
+function undo(){
+  if(undostack.length == 1)return;
+  undostack.pop();
+  grid = cloneof(undostack[undostack.length-1].grid);
+  connecteds = cloneof(undostack[undostack.length-1].connecteds);
+  goalpost = undostack[undostack.length-1].goalpost;
+  setstateto();
+  
+}
+
+function reset(){
+  grid = cloneof(undostack[0].grid);
+  connecteds = cloneof(undostack[0].connecteds);
+  goalpost = undostack[0].goalpost;
+  undostack = [undostack[0]];
+
+  setstateto();
+
+}
+
+function setstateto(){
+  generation = false;
+  stunlock = false;
+  clearTimeout(timeoutId);
+  Object.values(grid).map((object) => {
+    if(object.type == "player") player = object;
+    if(object.type == "thing") thing = object;
+  })
+  timeoutId = -1;
+  counter = 0;
+  draw();
+}
+
+function savestate(){
+  undostack.push({grid: cloneof(grid), connecteds: cloneof(connecteds), goalpost: goalpost});
+}
+
+onkeydown = onKey;
+generation = false;
+function add(p1, p2){return [p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]]}
+function equals(p1, p2){return p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2]}
+function onKey(e){
+  draw();
+  
+}
+
+function win(){
+  console.log("win")
+}
+
+dirs = [[-1, 0,0], [0, -1,0], [1, 0,0], [0, 1,0], [0,0,1], [0,0,-1]]
+
+function makemove(obj, d){
+  obj.willmove = false;
+    
+  delete grid[obj.pos]
+  for(var i=0; i<=3; i++){
+    if(equals(obj.pos,add(thing.pos, dirs[i]))){
+      connecteds[i] = true;
+    }
+  }
+  obj.pos= add(obj.pos, d);
+  if(obj.pos[2] >= 3) {
+    return;
+  }
+  if(grid[obj.pos]) makemove(grid[obj.pos], d);
+  grid[obj.pos] = obj;
+}
+
+function remove(obj){
+  delete grid[obj.pos]
+}
+
+function trymove(obj, d, ply){
+
+  if(!obj) return;
+
+  if(obj.willmove) return true;
+  if(obj.type == "thing" || obj.type == "floor") {
+    moveok = false;
+    return
+  }
+  if(grid[add(obj.pos, [0, 0, -1])] && grid[add(obj.pos, [0, 0, -1])].type == "player"){
+    if(ply){
+      moveok = false;
+      return
+    }
+  }
+  obj.willmove = true;
+  if(grid[add(obj.pos, d)]) {
+    trymove(grid[add(obj.pos, d)], d, ply);
+  }
+  dirs.map(dr => {
+    if(grid[add(obj.pos, dr)] && obj.type == grid[add(obj.pos, dr)].type){
+      trymove(grid[add(obj.pos, dr)],d, ply)
+    }
+  })
+
+  
+
+  
+}
+
+function setsupported(obj){
+  if(!obj.willmove) return;
+  obj.willmove = false;
+  dirs.map(dr => {
+    if(grid[add(obj.pos, dr)] && obj.type == grid[add(obj.pos, dr)].type){
+      setsupported(grid[add(obj.pos, dr)])
+    }
+  })
+  if(grid[add(obj.pos, [0,0,-1])]){
+      setsupported(grid[add(obj.pos, [0,0,-1])])
+    }
+}
+
+stunlock = false;
+
+function gravitystep(){
+  Object.values(grid).map((object) => { object.willmove = true;});
+  moveok = true;
+
+  for(i=0; i<=10; i++) for(j=0; j<=10; j++) if(grid[[i,j,0]]) setsupported(grid[[i,j,0]])
+  anyfell = false;
+  Object.values(grid).map((object) => { 
+    if(object.type == "floor") return;
+    if(object.willmove){
+      if(!object.gravitytimer) object.gravitytimer = 0;
+      if(object.gravitytimer%8 == 0)
+        makemove(object, [0,0,1]);
+       
+      object.gravitytimer++;
+
+      anyfell = true;
+    }
+  });
+  
+}
+
+function checkshouldagain(){
+  
+
+  Object.values(grid).map((object) => { object.willmove = true;});
+  moveok = false;
+  for(i=0; i<=10; i++) for(j=0; j<=10; j++)  if(grid[[i,j,0]]) setsupported(grid[[i,j,0]])
+  Object.values(grid).map((object) => { 
+    if(object.type == "floor") return;
+    if(object.willmove){
+      
+      moveok = true;
+    }
+  });
+  if(moveok) return true;
+  
+
+
+  for(i=0; i<=3; i++){
+    if(generation && connecteds[i]){
+      return true;
+    }
+  }
+  generation = false;
+  counter = 0;
+
+  return false;
+}
+
+againtime = 100;
+
+function again(){
+
+  stunlock = true;
+  gravitystep();
+  didtick = false;
+  if(generation) {
+    didtick = true;
+    tick();
+  }
+  if(checkshouldagain()){
+    timeoutId = setTimeout(again,againtime);
+  }else if(movegoalpost.length > 0){
+    if(!didtick){
+    goalpost += movegoalpost[0];
+    playSound(46796706);
+    movegoalpost = movegoalpost.slice(1);
+  }
+    timeoutId =setTimeout(again,againtime);
+  }else{
+    timeoutId=-1;
+    savestate();
+    stunlock = false;
+  }
+  draw();
+}
+gravitytimer = 0;
+moveok = false;
+function initiatemove(obj, d, ply){
+  if(!obj) return;
+  if(ply && stunlock) return;
+
+  Object.values(grid).map((object) => { object.willmove = false;});
+  moveok = true;
+  trymove(obj, d,ply);
+  if(moveok){
+    Object.values(grid).map((object) => { 
+      if(object.willmove){
+        makemove(object, d);
+      }
+    });
+
+  }
+  
+  if(ply) {
+    if(checkshouldagain()){
+      gravitytimer = 0;
+      timeoutId = setTimeout(again,againtime);
+    }
+    else{
+      
+    }
+  }
+  if(ply){
+    
+    savestate();
+  }
+  
+  draw();
+
+  
+}
+
+counter = 0;
+number = 1;
+function tick(){
+
+  colors.thing = ["#664444", "#555544", "#446644", "#445555"][counter]
+  if(number && connecteds[counter]){
+    d = dirs[counter]
+    
+      initiatemove(grid[add(thing.pos, d)], d, false);
+      if(!grid[add(thing.pos, d)]){
+      newcol = {type: cols[counter], pos: add(thing.pos, d)};
+      grid[newcol.pos] = newcol;
+      connecteds[counter] = false;
+      movegoalpost.push(1);
+      playSound( 71682106);;
+      /*messagetext = 'POWER: ON';
+      showTempMessage() ;*/
+          }
+    
+  }
+  [0, 1, 2, 3].map(x => {
+
+        if(!grid[add(dirs[x], thing.pos)] || cols[x] != grid[add(dirs[x], thing.pos)].type){
+          connecteds[x] = true;
+        }
+      }
+      )
+  counter+=number;
+  counter %= 4;
+  draw();
+  gravitystep();
+  draw();
+
+
+}
+
+
+
+draw();
+
+redraw = ()=>{
+  if(!textMode) 
+    draw();
+  else{
+    ctx.fillStyle = state.bgcolor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (var i = 0; i < titleWidth; i++){
+      for (var j = 0; j < titleHeight; j++){
+        var ch = titleImage[j].charAt(i);
+        if (ch in textImages); {
+          var sprite = textImages[ch];
+          ctx.drawImage(sprite, xoffset + i * cellwidth, yoffset + j * cellheight);
+        }
+      }
+    }
+    return;
+  }}
+processInput = (dir) => {
+  ULBS()
+  if (dir >= 0 && dir <= 3) {
+    initiatemove(player, dirs[dir], 1);
+   
+  }
+  if(dir == 4){
+   generation = true; if(timeoutId == -1) again(); 
+  }
+  draw()
+   
+}
+
+DoRestart = reset
+DoUndo = undo
 </script>
 
 
