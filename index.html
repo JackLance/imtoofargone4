@@ -709,6 +709,7 @@ function setsupported(obj){
   if(obj.pos[2] > 0){
     downsupported = true;
   }
+  obj.gravitytimer = 0;
   obj.willmove = false;
   dirs.map(dr => {
     if(grid[add(obj.pos, dr)] && obj.type == grid[add(obj.pos, dr)].type){
@@ -752,7 +753,7 @@ function gravitystep(){
 function checkshouldagain(){
   
 
-  Object.values(grid).map((object) => { object.willmove = true;});
+  Object.values(grid).map((object) => { object.willmove = true; });
   moveok = false;
   for(i=0; i<=10; i++) for(j=0; j<=10; j++)  if(grid[[i,j,0]]) setsupported(grid[[i,j,0]])
   Object.values(grid).map((object) => { 
@@ -825,6 +826,7 @@ function initiatemove(obj, d, ply){
   if(ply) {
     if(checkshouldagain()){
       gravitytimer = 0;
+      stunlock=true;
       timeoutId = setTimeout(again,againtime);
     }
     else{
