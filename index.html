@@ -330,7 +330,7 @@ messages = ["Hi, it's Jack. Just so you know, you can press X to use the generat
 "Hello, it's me. I guess I wasn't clear about this, but the goal is to get the *player* past the finish line.",
 "You too have gone far! :D",
 "Um... hey. The finish line is currently 10000 units away from the platform. You should probably rethink your approach. (If you beat this game by overloading my javascript numbers or whatever that doesn't count as a win.)",
-"Hi, ok here's the last extra shortcut. You can press backspace to open up the undo slidey bar thing (and then backspace again to close it.) Once again this has no effect on the puzzle and is for convenience."]
+"Hi, ok here's the last extra shortcut. You can press backspace to open up the undo slidey-bar-thing (and then backspace again to revert to the selected state.) Once again this has no effect on the puzzle and is for convenience."]
 messagesaid = [0, 0, 0, 0, 0, 0, 0, 0]
 xpressed = false;
 generator = [1, 1, 1, 1];
@@ -883,6 +883,8 @@ showmessage = (i) => {
   messagesaid[i] = true; 
 }
 
+firstmove = true;
+
 processInput = (dir) => {
   if(dir == 4 && showundobar){
       savestate();
@@ -896,9 +898,14 @@ processInput = (dir) => {
   keep = false;
   load = false;
   if (dir >= 0 && dir <= 3) {
-    if(undostack.length == 1){
+    if(firstmove){
+      firstmove = false;
       if(localStorage.getItem("visited") == "true"){
-        messagetext = "Hey, it's you again! I believe in you! Here's a quick recap of controls: [ to slow down, ] to speed up, K + # to keep state, L + # to load state, Backspace to open undo bar";
+        messagetext = "Hey, it's you again! I believe in you! Here's a quick recap of controls: X to use generator, [ to slow down, ] to speed up, K + # to keep state, L + # to load state, Backspace to open undo bar";
+        messagesaid[0] = true;
+        messagesaid[1] = true;
+        messagesaid[7] = true;
+        messagesaid[2] = true;
         showTempMessage();
       }
 
@@ -932,6 +939,22 @@ processInput = (dir) => {
   draw()
    
 }
+
+playSound = (seed,ignore) => {
+  if (ignore!==true){
+    pushSoundToHistory(seed);
+  }
+  if (muted){
+    return;
+  }
+  checkAudioContextExists();
+  if(Math.abs(player.pos[1] - thing.pos[1]) > 6)sfxCache = {}
+  SOUND_VOL = Math.max(0, 0.25 - 0.0025 * Math.max(1, (Math.abs(player.pos[1] - thing.pos[1]) - 6)));
+
+  var sound = cacheSeed(seed);
+  sound.play();
+}
+
 
 DoRestart = reset
 DoUndo = undo
