@@ -260,321 +260,283 @@ a {
 <script src="src/js/mobile.js"></script>
 
 <script>
+canvas = document.getElementById ('gameCanvas' );
+ctx = canvas.getContext ('2d' );
 
+var githubURL = 'https://api.github.com/gists/50c5dea44a8b5d738d4c2542ff5f08d0'
 
-	var githubURL = 'https://api.github.com/gists/50c5dea44a8b5d738d4c2542ff5f08d0'
+var githubHTTPClient = new XMLHttpRequest();
+githubHTTPClient.open('GET', githubURL);
+githubHTTPClient.onreadystatechange = function() {
+  if(githubHTTPClient.readyState!=4) {
+  		return;
+  }		
+  var result = JSON.parse(githubHTTPClient.responseText);
+  if (githubHTTPClient.status===403) {
+  	displayError(result.message);
+  } else if (githubHTTPClient.status!==200&&githubHTTPClient.status!==201) {
+  	displayError("HTTP Error "+ githubHTTPClient.status + ' - ' + githubHTTPClient.statusText);
+  }
+	var result = JSON.parse(githubHTTPClient.responseText);
+	var code=result["files"]["script.txt"]["content"];
+	compile(["restart"],code);
+	
+  var homepage="jacklance.github.io";
+	var homepageLink = document.getElementById("homepagelink");
+  homepageLink.textContent=homepage;
+ 	homepageLink.href = "https://" + homepage;
+	
+  var title="I'm Too Far Gone 4: It's Honestly A Pretty Big Jump";		
+  gametitle.textContent=title;
+	window.document.title=title;
 
-	var githubHTTPClient = new XMLHttpRequest();
-	githubHTTPClient.open('GET', githubURL);
-	githubHTTPClient.onreadystatechange = function() {
-		if(githubHTTPClient.readyState!=4) {
-			return;
-		}		
-		var result = JSON.parse(githubHTTPClient.responseText);
-		if (githubHTTPClient.status===403) {
-			displayError(result.message);
-		} else if (githubHTTPClient.status!==200&&githubHTTPClient.status!==201) {
-			displayError("HTTP Error "+ githubHTTPClient.status + ' - ' + githubHTTPClient.statusText);
-		}
-		var result = JSON.parse(githubHTTPClient.responseText);
-		var code=result["files"]["script.txt"]["content"];
-		compile(["restart"],code);
-
-		if (state.metadata.homepage!==undefined) {
-			var homepage=state.metadata.homepage;
-			var homepageLink = document.getElementById("homepagelink");
-          
-                homepageLink.textContent=homepage;
-            
-			
- 			if (!homepage.match(/^https?:\/\//)) {
- 				homepage = "https://" + homepage;
- 			}
- 			homepageLink.href = homepage;
-		}
-		if (state.metadata.title!==undefined) {
-			var title=state.metadata.title;
-			var gametitle = document.getElementById("gametitle");
-            gametitle.textContent=title;
-			window.document.title=title+" - PuzzleScript Game";
-		}
-                
-		var hacklink = document.getElementById("hacklink");
-
-
-		hacklink.onclick=hackclicked;
-        
-	}
-    // if (storage_has('oauth_access_token')) {
-    //     var oauthAccessToken = storage_get("oauth_access_token");
-    //     if (typeof oauthAccessToken === "string") {
-    //         githubHTTPClient.setRequestHeader("Authorization","token "+oauthAccessToken);
-    //     }
-    // }
-	githubHTTPClient.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-	githubHTTPClient.send();
+	var hacklink = document.getElementById("hacklink");
+	hacklink.onclick=hackclicked;      
+}
+githubHTTPClient.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+githubHTTPClient.send();
 
 
 grid = {};
-player = {type: "player", pos: [7, 7, 0]}
-thing = {type: "thing", pos: [5, 5, 0]};
 
-for(var i=0; i<11; i++) for(var j=0; j<11; j++) grid[[i, j, 1]] = {type: "floor", pos:[i, j, 1]}
+addtogrid = (obj) => {grid[obj.pos] = obj};
 
-grid[player.pos] = player;
-grid[thing.pos] = thing;
+addtogrid(player = {type: "player", pos: [7, 7, 0]});
+addtogrid(thing = {type: "thing", pos: [5, 5, 0]});
+for(var i=0; i<11; i++) 
+  for(var j=0; j<11; j++) 
+    addtogrid({type: "floor", pos:[i, j, 1]})
 
-canvas = document.getElementById ('gameCanvas' );
-ctx = canvas.getContext ('2d' );
-  cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  105))* 5;
-hpad = canvas.height - 21*cellsize;
-wpad = canvas.width - 21*cellsize;
-mysprites = {
-  player: '.....|.aaa.|.aaa.|.aaa.|.....',
-  thing: 'bbbbb|bbbbb|bbbbb|bbbbb|bbbbb',
-  alertr: '....c|....c|....c|....c|....c',
-  alertu: 'ccccc|.....|.....|.....|.....',
-  alertd: '.....|.....|.....|.....|ccccc',
-  alertl: 'c....|c....|c....|c....|c....',
-  ground: 'ddddd|ddddd|ddddd|ddddd|ddddd'
-};
-cols = {
-  a: '#F7E26B',
-  b: '#E0E0E0',
-  c: '#FFDD00',
-  d: '#707070',
-  
-};
 
 timeoutId = -1;
 goalpost = 12;
 movegoalpost = [];
 
-colors = {"thing":"#664444", "player":"pink", "red": "red", "green": "green", "blue": "blue", "yellow": "yellow"};
+
 cols = ["red", "green", "blue", "yellow"]
-normal = {"red": "#dd2020", "green": "#20dd20", "yellow": "#eeee20", "blue":"#5050ff"}
-darker = {"red": "#992020", "green": "#209920", "yellow": "#bbbb20", "blue":"#3030aa"}
-darkest = {"red": "#662020", "green": "#206620", "yellow": "#888820", "blue":"#202077"}
-darkestest = {"red": "#332020", "green": "#203320", "yellow": "#444420", "blue":"#202033"}
+colscheme = {
+  "red": ["#dd2020", "#992020", "#662020"], 
+  "green": ["#20dd20", "#209920", "#206620"], 
+  "yellow": ["#eeee20", "#bbbb20", "#888820"], 
+  "blue": ["#5050ff", "#3030aa", "#202077"]
+}
+
 undostack = []
 
 messages = ["Hi, it's Jack. Just so you know, you can press X to use the generator.",
 "Hi again, it's me. If you want, you can press [ to slow down, and ] to speed up the game's clock. This is also just for convenience and has no effect on the puzzle.",
-"Hey there, if you press K and a number key, I'll [k]eep your state saved. Then press L and that same number key, and I'll [l]oad your state. This is just for convenience and has no effect on the puzzle.",
+"Hey there, if you press K and a number key, I'll [k]eep your state saved. Then press L and that same number key, and I'll [l]oad your state. This is just for convenience and has no effect on the puzzle. (These will be kept even if you close the page and return.)",
 "Oh, hey. I didn't think you'd click that. This is actually not a puzzlescript game at all. I just made it look like this because it's a sequel to a puzzlescript game.",
 "Hello, it's me. I guess I wasn't clear about this, but the goal is to get the *player* past the finish line.",
 "You too have gone far! :D",
-"Um... hey. The finish line is currently 10000 units away from the platform. You should probably rethink your approach. (If you beat this game by overloading my javascript numbers or whatever that doesn't count as a win.)"]
-messagesaid = [false, false, false, false, false, false, false]
+"Um... hey. The finish line is currently 10000 units away from the platform. You should probably rethink your approach. (If you beat this game by overloading my javascript numbers or whatever that doesn't count as a win.)",
+"Hi, ok here's the last extra shortcut. You can press backspace to open up the undo slidey bar thing (and then backspace again to close it.) Once again this has no effect on the puzzle and is for convenience."]
+messagesaid = [0, 0, 0, 0, 0, 0, 0, 0]
 xpressed = false;
-connecteds = [1, 1, 1, 1];
+generator = [1, 1, 1, 1];
 savestate();
 
 function hackclicked(){
-  if(!messagesaid[3]){
   messagetext = messages[3];
-      showTempMessage() 
-      messagesaid[3] = true;
-    }
+  showTempMessage()   
+  document.getElementById("hacklink").remove();
 }
 
-function rect(a, b, c, d){
-  ctx.fillRect(a - camerax, b - cameray, c, d);
+function rect(a, b, c, d, color){
+  ctx.fillStyle = color;
+  ctx.fillRect(a * cellsize - camerax, b * cellsize - cameray, c * cellsize, d * cellsize);
 }
-stopdrawing = false;
+
+dontdraw = false;
 showmessage5 = false;
+showundobar = false;
+canvas.onclick = onclick;
+canvas.onmousemove = onclick;
+percent = 0.5;
+
+function onclick(e){
+  if(!showundobar || e.buttons != 1) return
+  percent = (e.offsetX-50)/(canvas.width-100);
+  if(percent < 0) percent = 0
+  if(percent > 1) percent = 1
+  barstart = Math.max(0, undostack.length - 1000);
+  setstateto(undostack[Math.round(barstart + (undostack.length-1-barstart) * percent)]);
+  draw();
+}
+
 function draw(){
-  if(stopdrawing) return;
-  if(textMode) return;
+  if(dontdraw || textMode) return;
+
   cellsize = Math.floor(Math.min(canvas.height / 105, canvas.width /  135))* 5;
-hpad = canvas.height - 21*cellsize;
-wpad = canvas.width - 27*cellsize;
+  hpad = canvas.height - 21*cellsize;
+  wpad = canvas.width - 27*cellsize;
 
-    camerax = player.pos[1]*cellsize - Math.floor(canvas.width/2);
-    cameray = player.pos[0]*cellsize - Math.floor(canvas.height/2);
+  camerax = player.pos[1]*cellsize - Math.floor(canvas.width/2);
+  cameray = player.pos[0]*cellsize - Math.floor(canvas.height/2);
     
-    ctx.fillStyle = "#101010";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#101010";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);  
     
-    
-    ctx.fillStyle = "#F0F0F0";
-    rect(0, 0, cellsize*11, cellsize*11);
-   for(var z=2; z>=0; z--){
-      Object.values(grid).map((object) => {
-        if(object.pos[2] != z) return;
-        if(object == player){
+  rect(0, 0, 11, 11, "#F0F0F0");
+
+  for(var z=2; z>=0; z--){
+    Object.values(grid).map((object) => {
+      if(object.pos[2] != z) return;
+      if(object.type == "floor") return;
+      if(object == player){
+        rect(object.pos[1] + 1/5, object.pos[0] + 1/5, 3/5, 3/5, ["#4BC2D7", "#2B6277", "#1B3247"][object.pos[2]]);
+      }
+      else if(object == thing){
+        rect(object.pos[1] , object.pos[0], 1, 1, "#D0D0D0");
+      }
+      else {
+        if(!messagesaid[4] && object.pos[1] > goalpost && goalpost > player.pos[1] + 40){
+          showmessage5 = true;
+        }
+
+        if(object.pos[2] == 2){
+          ctx.fillStyle = colscheme[object.type][2];
+          rect(object.pos[1] + 1/5, object.pos[0] + 1/5, 3/5, 3/5);
+          return;
+        }
         
-          ctx.fillStyle = ["#4BC2D7", "#2B6277", "#1B3247"][object.pos[2]];
-          rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
+        if(object.pos[2] == 1){
+          rect(object.pos[1], object.pos[0], 1, 1, colscheme[object.type][2]);
+          rect(object.pos[1] + 1/5, object.pos[0] + 1/5, 3/5, 3/5, colscheme[object.type][1]);
+        }else{
+          rect(object.pos[1] + 1/5, object.pos[0] + 1/5, 3/5, 3/5, colscheme[object.type][0]);
         }
-        if(object == thing){
-          ctx.fillStyle = "#D0D0D0";
-          rect(object.pos[1]*cellsize , object.pos[0]*cellsize , cellsize, cellsize);
+
+        touches = [false, false, false, false]
+        for(var d=0; d<4; d++){
+          if((!generator[(d+2)%4] && equals(thing.pos, add(object.pos, dirs[d]))) || 
+            (grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type)){
+            touches[d] = true;
+          }
         }
-        if(object.type == "red" || object.type == "blue" || object.type == "yellow" || object.type == "green"){
-          if(!messagesaid[4] && object.pos[1] > goalpost && goalpost > player.pos[1] + 40){
-            showmessage5 = true;
-              
-            }
 
-          if(object.pos[2] == 2){
-             ctx.fillStyle = darkest[object.type];
-             //rect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize, cellsize);
-             //ctx.fillStyle = darkest[object.type];
-             rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
-             return;
-          }
-          if(object.pos[2] == 1){
-            ctx.fillStyle = darkest[object.type];
-            rect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize, cellsize);
-            ctx.fillStyle = darker[object.type];
-            rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
-
-             touches = [false, false, false, false]
-            for(var d=0; d<4; d++){
-              if(grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type){
-                ctx.fillStyle = darker[object.type];
-                touches[d] = true;
-              }else{
-                ctx.fillStyle = darkest[object.type];
-              }
-              if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
-              if(d == 1) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-              if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
-              if(d == 3) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-            }
-            ctx.fillStyle = darker[object.type];
-            if(touches[0] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
-            if(touches[2] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-            if(touches[2] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-            if(touches[0] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
-            ctx.fillStyle = darkest[object.type];
-            if(touches[0] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
-            if(touches[2] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-            if(touches[2] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-            if(touches[0] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
-
-
-            return;
-          }
-          
-          
-          ctx.fillStyle = normal[object.type];
-          rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + cellsize/5, cellsize*3/5, cellsize*3/5);
-
-          touches = [false, false, false, false]
-          for(var d=0; d<4; d++){
-            if(grid[add(object.pos, dirs[d])] && grid[add(object.pos, dirs[d])].type == object.type){
-              ctx.fillStyle = normal[object.type];
-              touches[d] = true;
-            }else{
-              ctx.fillStyle = darker[object.type];
-            }
-            if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
-            if(d == 1) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-            if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
-            if(d == 3) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-          }
-          ctx.fillStyle = normal[object.type];
-          if(touches[0] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
-          if(touches[2] && touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-          if(touches[2] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-          if(touches[0] && touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
-          ctx.fillStyle = darker[object.type];
-          if(touches[0] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize/5, cellsize/5);
-          if(touches[2] != touches[1]) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-          if(touches[2] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ 4*cellsize/5, cellsize/5, cellsize/5);
-          if(touches[0] != touches[3]) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize/5, cellsize/5);
-
-           for(var d=0; d<4; d++){
-            if(equals(object.pos, add(thing.pos, dirs[d]))){
-              if(!connecteds[d]){
-                ctx.fillStyle = darker[object.type];
-                 if(d == 2) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize*5/5, cellsize*1/5);
-                if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
-                if(d == 0) rect(object.pos[1]*cellsize , object.pos[0]*cellsize + 4*cellsize/5, cellsize*5/5, cellsize*1/5);
-                if(d == 1) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize, cellsize*1/5, cellsize*5/5);
-                ctx.fillStyle = normal[object.type];
-                if(d == 2) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize, cellsize*3/5, cellsize*1/5);
-            if(d == 3) rect(object.pos[1]*cellsize , object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-            if(d == 0) rect(object.pos[1]*cellsize + cellsize/5, object.pos[0]*cellsize + 4*cellsize/5, cellsize*3/5, cellsize*1/5);
-            if(d == 1) rect(object.pos[1]*cellsize + 4*cellsize/5, object.pos[0]*cellsize+ cellsize/5, cellsize*1/5, cellsize*3/5);
-              }
-            }
-           }
-        }
-        //ctx.fillStyle = colors[object.type];
-        //ctx.fillRect(object.pos[1]*cellsize, object.pos[0]*cellsize, cellsize-1-5*object.pos[2], cellsize-1-5*object.pos[2]);
+        rect(object.pos[1] + 1/5, object.pos[0], 3/5, 1/5, colscheme[object.type][z + !touches[0]]);
+        rect(object.pos[1], object.pos[0]+ 1/5, 1/5, 3/5, colscheme[object.type][z + !touches[1]]);
+        rect(object.pos[1] + 1/5, object.pos[0] + 4/5, 3/5, 1/5, colscheme[object.type][z + !touches[2]]);
+        rect(object.pos[1] + 4/5, object.pos[0]+ 1/5, 1/5, 3/5, colscheme[object.type][z + !touches[3]]);
+            
+        ctx.fillStyle = colscheme[object.type][z+1];
+        if(touches[0] && touches[1]) rect(object.pos[1], object.pos[0], 1/5, 1/5);
+        if(touches[2] && touches[1]) rect(object.pos[1], object.pos[0]+ 4/5, 1/5, 1/5);
+        if(touches[2] && touches[3]) rect(object.pos[1] + 4/5, object.pos[0]+ 4/5, 1/5, 1/5);
+        if(touches[0] && touches[3]) rect(object.pos[1] + 4/5, object.pos[0], 1/5, 1/5);
         
-      })
+        ctx.fillStyle = colscheme[object.type][z+1];
+        if(touches[0] != touches[1]) rect(object.pos[1], object.pos[0], 1/5, 1/5);
+        if(touches[2] != touches[1]) rect(object.pos[1], object.pos[0]+ 4/5, 1/5, 1/5);
+        if(touches[2] != touches[3]) rect(object.pos[1] + 4/5, object.pos[0]+ 4/5, 1/5, 1/5);
+        if(touches[0] != touches[3]) rect(object.pos[1] + 4/5, object.pos[0], 1/5, 1/5);
+
+      }
+    })
     
     ctx.fillStyle = "#F7E26B";
-    if(connecteds[0]){    
-      rect(thing.pos[1]*cellsize , thing.pos[0]*cellsize , cellsize, cellsize/5);
+    if(generator[0]){    
+      rect(thing.pos[1], thing.pos[0], 1, 1/5);
     }
-    if(connecteds[1]){
-      rect(thing.pos[1]*cellsize , thing.pos[0]*cellsize , cellsize/5, cellsize);
+    if(generator[1]){
+      rect(thing.pos[1], thing.pos[0], 1/5, 1);
     }
-    if(connecteds[2]){
-      rect(thing.pos[1]*cellsize, thing.pos[0]*cellsize  +cellsize*4/5, cellsize, cellsize/5);
+    if(generator[2]){
+      rect(thing.pos[1], thing.pos[0]+4/5, 1, 1/5);
     }
-    if(connecteds[3]){
-      rect(thing.pos[1]*cellsize  +cellsize*4/5, thing.pos[0]*cellsize , cellsize/5, cellsize);
+    if(generator[3]){
+      rect(thing.pos[1]+4/5, thing.pos[0], 1/5, 1);
     }
-    if((connecteds[0] || connecteds[1] || connecteds[2] || connecteds[3]) && (counter >= 0 && counter < 4)){
-      rect(thing.pos[1]*cellsize  +cellsize*(2+dirs[counter][1])/5, thing.pos[0]*cellsize + cellsize*(2+dirs[counter][0])/5 , cellsize/5, cellsize/5);
+    if((generator[0] || generator[1] || generator[2] || generator[3]) && (counter >= 0 && counter < 4)){
+      rect(thing.pos[1]  +(2+dirs[counter][1])/5, thing.pos[0] + (2+dirs[counter][0])/5 , 1/5, 1/5);
     }
-    ctx.fillStyle = "#00FF00";
-    rect(goalpost * cellsize,-2000, cellsize/5, 4000);
+
+    rect(goalpost,-2000, 1/5, 4000, "#00FF00");
+
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvas.width, hpad/2);
     ctx.fillRect(0, 0, wpad/2, canvas.height);
     ctx.fillRect(0, canvas.height-hpad/2, canvas.width, hpad/2);
     ctx.fillRect(canvas.width-wpad/2, 0, wpad/2, canvas.height);
   
-    }
-      if(showmessage5){
-      messagetext = messages[4];
-            
-            showTempMessage();
-            messagesaid[4] = true; 
-            showmessage5 = false;
-          }
-      if(!messagesaid[5] && player.pos[1] >= goalpost){
-              messagetext = messages[5];
-            
-              showTempMessage();
-              messagesaid[5] = true; 
-              stopdrawing = true;
-            }
+  }
+  
+  if(showmessage5){
+    messagetext = messages[4];
+    showTempMessage();
+    messagesaid[4] = true; 
+    showmessage5 = false;
+  }
+  if(!messagesaid[5] && player.pos[1] >= goalpost){
+    messagetext = "You too have gone far! :D";
+    showTempMessage();
+    onkeydown = () => {
+      messagetext = "Hmm I feel like there should be more fanfare than that.";
+      showTempMessage();
+      onkeydown = () => {
+        messagetext = "Uhhhhhh";
+        showTempMessage();
+        onkeydown = () => {
+          messagetext = "Uhhhhhhhhhhh";
+          showTempMessage();
+          onkeydown = () => {
+          localStorage.clear();
+            a = Math.min(canvas.width/16, canvas.height/10)
+            const myImage = new Image(a*16, a*10);
+            canvas.style.display="none";
+            myImage.src = './src/frame1.png';
+            document.body.appendChild(myImage);
+            frame = 1;
+            setInterval(()=>{
+              frame%=12;
+              frame++;
+
+              myImage.src = './src/frame' + frame + '.png';
+            }, 100)
+          } 
+        } 
+      } 
+    } 
+    dontdraw = true;
+  }
+
+  if(showundobar){
+    ctx.fillStyle = "#888888";
+    ctx.fillRect(50, canvas.height-50, canvas.width-100, 10);
+
+    ctx.fillStyle = "#dd3333";
+    ctx.fillRect(50, canvas.height-50, (canvas.width-100)*percent, 10);
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(50 + (canvas.width-100)*percent, canvas.height-45, 8, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fill();
+  }
 }
 
 function cloneof(obj){
   return JSON.parse(JSON.stringify(obj));
 }
 
-
 function undo(){
-  if(undostack.length == 1)return;
+  if(undostack.length == 1) return;
   undostack.pop();
-  grid = cloneof(undostack[undostack.length-1].grid);
-  connecteds = cloneof(undostack[undostack.length-1].connecteds);
-  goalpost = undostack[undostack.length-1].goalpost;
-  setstateto();
-  
+  setstateto(undostack[undostack.length-1]);
+
 }
 
-function reset(){
-  grid = cloneof(undostack[0].grid);
-  connecteds = cloneof(undostack[0].connecteds);
-  goalpost = undostack[0].goalpost;
+function reset(){  
   undostack.push(cloneof(undostack[0]));
-
-  setstateto();
-
+  setstateto(undostack[0]);
 }
 
-function setstateto(){
+function setstateto(state){
+  grid = cloneof(state.grid);
+  generator = cloneof(state.generator);
+  goalpost = state.goalpost;
   generation = false;
   stunlock = false;
   clearTimeout(timeoutId);
@@ -587,36 +549,52 @@ function setstateto(){
   draw();
 }
 
+var str = localStorage.getItem('state');
+  if(str){
+    setstateto(JSON.parse(str))
+    draw();
+    savestate();
+  }
+
 function savestate(){
-  undostack.push({grid: cloneof(grid), connecteds: cloneof(connecteds), goalpost: goalpost});
+  undostack.push({grid: cloneof(grid), generator: cloneof(generator), goalpost: goalpost});
+  if(undostack.length > 1) localStorage.setItem('state', JSON.stringify(undostack[undostack.length-1]));
 }
 
 onkeydown = onKey;
 generation = false;
 keep = false;
 savedstates = {};
+for(i = '0'; i<= '9'; i++){
+  var str = localStorage.getItem('slot' + i);
+  if(str){
+    savedstates[i] = JSON.parse(str);
+  }
+}
+
 function add(p1, p2){return [p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]]}
 function equals(p1, p2){return p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2]}
+
 againtime = 100;
+
+
+
 function onKey(e){
-   if(stopdrawing) return;
+   if(dontdraw) return;
   if(e.key >= '0' && e.key<='9'){
     if(keep){
       savedstates[e.key] = cloneof(undostack[undostack.length-1]);
       messagetext = "State kept in slot " + e.key + "!";
       showTempMessage();
+      localStorage.setItem('slot' + e.key, JSON.stringify(savedstates[e.key]));
     }
     if(load){
       if(!savedstates[e.key]){
         messagetext = "No state currently in slot " + e.key + " :(";
         showTempMessage();
       }else{
-        grid = cloneof(savedstates[e.key].grid);
-        connecteds = cloneof(savedstates[e.key].connecteds);
-        goalpost = savedstates[e.key].goalpost;
+        setstateto(savedstates[e.key]);
         savestate();
-
-        setstateto();
         messagetext = "State loaded from slot " + e.key + "!";
         showTempMessage();
       }
@@ -626,25 +604,31 @@ function onKey(e){
   load = false;
 
   if(e.key == '['){
-    if(againtime < 400) againtime *= 2;
+    if(againtime < 800) againtime *= 2;
   }
   if(e.key == ']'){
-    if(againtime > 50) againtime /=2;
+    if(againtime > 25) againtime /=2;
   }
 
   if(e.key == 'k'){
     keep = true;
   }
-if(e.key == 'l'){
+  if(e.key == 'l'){
     load = true;
+  }
+  if(e.key == 'Backspace'){
+    if(!showundobar){
+      percent = 1;
+      showundobar = true;
+    }
+    else{
+      savestate();
+      showundobar = false;
+    }
   }
   console.log(e);
   draw();
   
-}
-
-function win(){
-  console.log("win")
 }
 
 dirs = [[-1, 0,0], [0, -1,0], [1, 0,0], [0, 1,0], [0,0,1], [0,0,-1]]
@@ -655,8 +639,8 @@ function makemove(obj, d){
   delete grid[obj.pos]
   for(var i=0; i<=3; i++){
     if(equals(obj.pos,add(thing.pos, dirs[i]))){
-      if(!connecteds[i]) playSound(23973703)
-      connecteds[i] = true;
+      if(!generator[i]) playSound(23973703)
+      generator[i] = true;
     }
   }
   obj.pos= add(obj.pos, d);
@@ -768,7 +752,7 @@ function checkshouldagain(){
 
 
   for(i=0; i<=3; i++){
-    if(generation && connecteds[i]){
+    if(generation && generator[i]){
       return true;
     }
   }
@@ -781,7 +765,7 @@ function checkshouldagain(){
 
 
 function again(){
-  if(stopdrawing) return;
+  if(dontdraw) return;
   stunlock = true;
   gravitystep();
   didtick = false;
@@ -843,29 +827,25 @@ counter = 0;
 number = 1;
 function tick(){
 
-  colors.thing = ["#664444", "#555544", "#446644", "#445555"][counter]
-  if(number && connecteds[counter]){
+  
+  if(number && generator[counter]){
     d = dirs[counter]
     
       initiatemove(grid[add(thing.pos, d)], d, false);
       if(!grid[add(thing.pos, d)]){
-      newcol = {type: cols[counter], pos: add(thing.pos, d)};
-      grid[newcol.pos] = newcol;
-      connecteds[counter] = false;
-      movegoalpost.push(1);
-      playSound( 71682106);;
-      /*messagetext = 'POWER: ON';
-      showTempMessage() ;*/
-          }
+        newcol = {type: cols[counter], pos: add(thing.pos, d)};
+        grid[newcol.pos] = newcol;
+        generator[counter] = false;
+        movegoalpost.push(1);
+        playSound( 71682106);;
     
+      }   
   }
   [0, 1, 2, 3].map(x => {
-
-        if(!grid[add(dirs[x], thing.pos)] || cols[x] != grid[add(dirs[x], thing.pos)].type){
-          connecteds[x] = true;
-        }
-      }
-      )
+    if(!grid[add(dirs[x], thing.pos)] || cols[x] != grid[add(dirs[x], thing.pos)].type){
+      generator[x] = true;
+    }
+  })
   counter+=number;
   counter %= 4;
   draw();
@@ -896,38 +876,53 @@ redraw = ()=>{
     }
     return;
   }}
+
+showmessage = (i) => {
+  messagetext = messages[i];
+  showTempMessage();
+  messagesaid[i] = true; 
+}
+
 processInput = (dir) => {
-   if(stopdrawing) return;
+  if(dir == 4 && showundobar){
+      savestate();
+      showundobar = false;
+      draw();
+      return;
+
+    }
+  if(showundobar || dontdraw) return;
   ULBS()
-   keep = false;
+  keep = false;
   load = false;
   if (dir >= 0 && dir <= 3) {
+    if(undostack.length == 1){
+      if(localStorage.getItem("visited") == "true"){
+        messagetext = "Hey, it's you again! I believe in you! Here's a quick recap of controls: [ to slow down, ] to speed up, K + # to keep state, L + # to load state, Backspace to open undo bar";
+        showTempMessage();
+      }
+
+      localStorage.setItem("visited", "true");
+    }
     if(undostack.length >= 30 && !xpressed && !messagesaid[0]){
-      messagetext = messages[0];
-      showTempMessage();
-      messagesaid[0] = true; 
+      showmessage(0) 
     }
     if(undostack.length >= 300 && !messagesaid[1]){
-      messagetext = messages[1];
-      showTempMessage();
-      messagesaid[1] = true; 
+      showmessage(1) 
     }
- 
+    if(undostack.length >= 500 && !messagesaid[7]){
+      showmessage(7) 
+    }
     if(undostack.length >= 100 && !messagesaid[2]){
-      messagetext = messages[2];
-      showTempMessage();
-      messagesaid[2] = true; 
+      showmessage(2) 
     }
     if(goalpost > 10000 && !messagesaid[6]){
-messagetext = messages[6];
-      showTempMessage();
-      messagesaid[6] = true; 
+      showmessage(6) 
     }
     initiatemove(player, dirs[dir], 1);
-   
   }
-  if(dir == 4){
-   
+  if(dir == 4){  
+
     if(!stunlock && timeoutId == -1) {
       generation = true;
       xpressed = true;
